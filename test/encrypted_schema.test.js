@@ -3,19 +3,18 @@
 
 const assert = require('assert');
 const start = require('./common');
-const BSON = require('bson');
 
 const mongoose = start.mongoose;
 const Schema = mongoose.Schema;
 
 function has(object, property) {
     if (typeof object !== 'object') {
-        throw new Error('cannot check keys of non-object')
+        throw new Error('cannot check keys of non-object');
     }
     if (object === null) {
-        throw new Error('expected object to exist but it did not.')
+        throw new Error('expected object to exist but it did not.');
     }
-    return Boolean(Object.entries(object).find(([k]) => k === property))
+    return Boolean(Object.entries(object).find(([k]) => k === property));
 }
 
 describe.only('encrypted schema declaration', function () {
@@ -30,6 +29,6 @@ describe.only('encrypted schema declaration', function () {
             });
 
             assert.ok(has(schema.encryptedFields, 'name'));
-        })
-    })
+        });
+    });
 });
