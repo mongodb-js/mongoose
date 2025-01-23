@@ -368,7 +368,7 @@ describe('Model', function() {
         assert.equal(post.get('comments')[0].comments[0].isNew, true);
         post.invalidate('title'); // force error
 
-        await post.save().catch(() => {});
+        await post.save().catch(() => { });
         assert.equal(post.isNew, true);
         assert.equal(post.get('comments')[0].isNew, true);
         assert.equal(post.get('comments')[0].comments[0].isNew, true);
@@ -2479,7 +2479,7 @@ describe('Model', function() {
 
         const DefaultErr = db.model('Test', DefaultErrSchema);
 
-        new DefaultErr().save().catch(() => {});
+        new DefaultErr().save().catch(() => { });
 
         await new Promise(resolve => {
           DefaultErr.once('error', function(err) {
@@ -3043,7 +3043,7 @@ describe('Model', function() {
       const Location = db.model('Test', LocationSchema);
 
 
-      await Location.collection.drop().catch(() => {});
+      await Location.collection.drop().catch(() => { });
       await Location.init();
 
       await Location.create({
@@ -3512,7 +3512,7 @@ describe('Model', function() {
           listener = null;
           // Change stream may still emit "MongoAPIError: ChangeStream is closed" because change stream
           // may still poll after close.
-          changeStream.on('error', () => {});
+          changeStream.on('error', () => { });
           changeStream.close();
           changeStream = null;
         });
@@ -3664,7 +3664,7 @@ describe('Model', function() {
 
           // Change stream may still emit "MongoAPIError: ChangeStream is closed" because change stream
           // may still poll after close.
-          changeStream.on('error', () => {});
+          changeStream.on('error', () => { });
           await changeStream.close();
           await db.close();
         });
@@ -3682,7 +3682,7 @@ describe('Model', function() {
 
           // Change stream may still emit "MongoAPIError: ChangeStream is closed" because change stream
           // may still poll after close.
-          changeStream.on('error', () => {});
+          changeStream.on('error', () => { });
 
           const close = changeStream.close();
           await db.asPromise();
@@ -3708,7 +3708,7 @@ describe('Model', function() {
 
           // Change stream may still emit "MongoAPIError: ChangeStream is closed" because change stream
           // may still poll after close.
-          changeStream.on('error', () => {});
+          changeStream.on('error', () => { });
 
           changeStream.close();
           const closedData = await closed;
@@ -5540,7 +5540,7 @@ describe('Model', function() {
       const Model = db.model('User', userSchema);
 
 
-      await Model.collection.drop().catch(() => {});
+      await Model.collection.drop().catch(() => { });
       await Model.createCollection();
       const collectionName = Model.collection.name;
 
@@ -5574,7 +5574,7 @@ describe('Model', function() {
       const Test = db.model('Test', schema, 'Test');
       await Test.init();
 
-      await Test.collection.drop().catch(() => {});
+      await Test.collection.drop().catch(() => { });
       await Test.createCollection();
 
       const collections = await Test.db.db.listCollections().toArray();
@@ -5583,7 +5583,7 @@ describe('Model', function() {
       assert.equal(coll.type, 'timeseries');
       assert.equal(coll.options.timeseries.timeField, 'timestamp');
 
-      await Test.collection.drop().catch(() => {});
+      await Test.collection.drop().catch(() => { });
     });
 
     it('createCollection() enforces expireAfterSeconds (gh-11229)', async function() {
@@ -5604,7 +5604,7 @@ describe('Model', function() {
 
       const Test = db.model('TestGH11229Var1', schema);
 
-      await Test.collection.drop().catch(() => {});
+      await Test.collection.drop().catch(() => { });
       await Test.createCollection({ expireAfterSeconds: 5 });
 
       const collOptions = await Test.collection.options();
@@ -5632,7 +5632,7 @@ describe('Model', function() {
 
       const Test = db.model('TestGH11229Var2', schema, 'TestGH11229Var2');
 
-      await Test.collection.drop().catch(() => {});
+      await Test.collection.drop().catch(() => { });
       await Test.createCollection({ expires: '5 seconds' });
 
       const collOptions = await Test.collection.options();
@@ -5660,7 +5660,7 @@ describe('Model', function() {
 
       const Test = db.model('TestGH11229Var3', schema);
 
-      await Test.collection.drop().catch(() => {});
+      await Test.collection.drop().catch(() => { });
       await Test.createCollection();
 
       const collOptions = await Test.collection.options();
@@ -5688,7 +5688,7 @@ describe('Model', function() {
 
       const Test = db.model('TestGH11229Var4', schema);
 
-      await Test.collection.drop().catch(() => {});
+      await Test.collection.drop().catch(() => { });
       await Test.createCollection();
 
       const collOptions = await Test.collection.options();
@@ -5716,7 +5716,7 @@ describe('Model', function() {
       const Test = db.model('Test', schema, 'Test');
       await Test.init();
 
-      await Test.collection.drop().catch(() => {});
+      await Test.collection.drop().catch(() => { });
       await Test.createCollection();
 
       const collections = await Test.db.db.listCollections().toArray();
@@ -5725,7 +5725,7 @@ describe('Model', function() {
       assert.deepEqual(coll.options.clusteredIndex.key, { _id: 1 });
       assert.equal(coll.options.clusteredIndex.name, 'clustered test');
 
-      await Test.collection.drop().catch(() => {});
+      await Test.collection.drop().catch(() => { });
     });
 
     it('mongodb actually removes expired documents (gh-11229)', async function() {
@@ -5747,7 +5747,7 @@ describe('Model', function() {
 
       const Test = db.model('TestMongoDBExpireRemoval', schema);
 
-      await Test.collection.drop().catch(() => {});
+      await Test.collection.drop().catch(() => { });
       await Test.createCollection({ expireAfterSeconds: 5 });
 
       await Test.insertMany([
@@ -5845,7 +5845,7 @@ describe('Model', function() {
       const Model = db.model('User', userSchema);
 
 
-      await Model.collection.drop().catch(() => {});
+      await Model.collection.drop().catch(() => { });
 
       await Model.createCollection();
       await Model.createCollection();
@@ -6525,7 +6525,7 @@ describe('Model', function() {
     await User.bulkWrite([
       {
         updateOne: {
-          filter: { },
+          filter: {},
           update: { friends: ['Sam'] },
           upsert: true,
           setDefaultsOnInsert: true
@@ -7002,7 +7002,7 @@ describe('Model', function() {
     });
 
     it('insertMany should throw an error if there were operations that failed validation, ' +
-        'but all operations that passed validation succeeded (gh-14572) (gh-13256)', async function() {
+      'but all operations that passed validation succeeded (gh-14572) (gh-13256)', async function() {
       const userSchema = new Schema({
         age: { type: Number }
       });
@@ -8020,7 +8020,7 @@ describe('Model', function() {
     decoratorSchema.loadClass(Decorator);
 
     // Define discriminated class before model is compiled
-    class Deco1 extends Decorator { whoAmI() { return 'I am Test1'; }}
+    class Deco1 extends Decorator { whoAmI() { return 'I am Test1'; } }
     const deco1Schema = new Schema({});
     deco1Schema.loadClass(Deco1);
     decoratorSchema.discriminator('Test1', deco1Schema);
@@ -8032,7 +8032,7 @@ describe('Model', function() {
     const shopModel = db.model('Test', shopSchema);
 
     // Define another discriminated class after the model is compiled
-    class Deco2 extends Decorator { whoAmI() { return 'I am Test2'; }}
+    class Deco2 extends Decorator { whoAmI() { return 'I am Test2'; } }
     const deco2Schema = new Schema({});
     deco2Schema.loadClass(Deco2);
     decoratorSchema.discriminator('Test2', deco2Schema);
@@ -8158,7 +8158,7 @@ describe('Model', function() {
   });
 
   it('insertMany should throw an error if there were operations that failed validation, ' +
-      'but all operations that passed validation succeeded (gh-13256)', async function() {
+    'but all operations that passed validation succeeded (gh-13256)', async function() {
     const userSchema = new Schema({
       age: { type: Number }
     });
