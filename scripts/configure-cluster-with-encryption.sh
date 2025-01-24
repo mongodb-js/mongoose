@@ -7,7 +7,7 @@
 export CWD=$(pwd);
 
 # install extra dependency 
-npm install mongodb-client-encryption
+npm install --no-save mongodb-client-encryption
 
 # set up mongodb cluster and encryption configuration if the data/ folder does not exist
 if [ ! -d "data" ]; then
