@@ -124,14 +124,14 @@ describe('ci', () => {
         it(`${name} encrypts and decrypts`, test);
       });
 
-      describe('QE', function() {
+      describe('queryableEncryption', function() {
         beforeEach(async function() {
           schema = new Schema({
             field: {
               type, encrypt: { keyId: keyId }
             }
           }, {
-            encryptionType: 'qe'
+            encryptionType: 'queryableEncryption'
           });
 
           connection = createConnection();
@@ -187,7 +187,7 @@ describe('ci', () => {
                 }
               }
             }, {
-              encryptionType: 'qe'
+              encryptionType: 'queryableEncryption'
             });
 
             connection = createConnection();
@@ -231,12 +231,12 @@ describe('ci', () => {
                 }
               }
             }, {
-              encryptionType: 'qe'
+              encryptionType: 'queryableEncryption'
             });
             const schema = new Schema({
               a: nestedSchema
             }, {
-              encryptionType: 'qe'
+              encryptionType: 'queryableEncryption'
             });
 
             connection = createConnection();
@@ -307,7 +307,7 @@ describe('ci', () => {
                 }
               }
             }, {
-              encryptionType: 'qe'
+              encryptionType: 'queryableEncryption'
             });
 
             connection = createConnection();
@@ -398,7 +398,7 @@ describe('ci', () => {
                 }
               }
             }, {
-              encryptionType: 'qe'
+              encryptionType: 'queryableEncryption'
             });
 
             connection = createConnection();
@@ -481,7 +481,7 @@ describe('ci', () => {
                 }
               }
             }, {
-              encryptionType: 'qe'
+              encryptionType: 'queryableEncryption'
             }));
             const model2 = connection.model('Model2', new Schema({
               b: {
@@ -491,7 +491,7 @@ describe('ci', () => {
                 }
               }
             }, {
-              encryptionType: 'qe'
+              encryptionType: 'queryableEncryption'
             }));
 
             return { model1, model2 };
@@ -551,7 +551,7 @@ describe('ci', () => {
             }
           }
         }, {
-          encryptionType: 'qe'
+          encryptionType: 'queryableEncryption'
         }));
         const model2 = connection.model('Model2', new Schema({
           b: {
@@ -684,7 +684,7 @@ describe('ci', () => {
       });
 
 
-      describe('qe', function() {
+      describe('queryableEncryption', function() {
         beforeEach(async function() {
           connection = createConnection();
 
