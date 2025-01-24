@@ -8,11 +8,15 @@ const { ObjectId, Double, Int32, Decimal128 } = require('bson');
 
 const LOCAL_KEY = Buffer.from('Mng0NCt4ZHVUYUJCa1kxNkVyNUR1QURhZ2h2UzR2d2RrZzh0cFBwM3R6NmdWMDFBMUN3YkQ5aXRRMkhGRGdQV09wOGVNYUMxT2k3NjZKelhaQmRCZGJkTXVyZG9uSjFk', 'base64');
 
-assert.isEncryptedValue = function isEncryptedValue(object, property) {
+/**
+ * @param {object} object
+ * @param {string} property
+ */
+function isEncryptedValue(object, property) {
   const value = object[property];
   assert.ok(isBsonType(value, 'Binary'), `auto encryption for property ${property} failed: not a BSON binary.`);
   assert.ok(value.sub_type === 6, `auto encryption for property ${property} failed: not subtype 6.`);
-};
+}
 
 describe('ci', () => {
   describe('environmental variables', () => {
@@ -645,7 +649,7 @@ describe('ci', () => {
 
             const encryptedDoc = await utilClient.db('db').collection('schemas').findOne({ _id: doc._id });
 
-            assert.isEncryptedValue(encryptedDoc, 'age');
+            isEncryptedValue(encryptedDoc, 'age');
           }
 
           {
@@ -654,7 +658,7 @@ describe('ci', () => {
 
             const encryptedDoc = await utilClient.db('db').collection('schemas').findOne({ _id: doc._id });
 
-            assert.isEncryptedValue(encryptedDoc, 'dob');
+            isEncryptedValue(encryptedDoc, 'dob');
           }
         });
 
@@ -726,7 +730,7 @@ describe('ci', () => {
 
             const encryptedDoc = await utilClient.db('db').collection('schemas').findOne({ _id: doc._id });
 
-            assert.isEncryptedValue(encryptedDoc, 'age');
+            isEncryptedValue(encryptedDoc, 'age');
           }
 
           {
@@ -735,7 +739,7 @@ describe('ci', () => {
 
             const encryptedDoc = await utilClient.db('db').collection('schemas').findOne({ _id: doc._id });
 
-            assert.isEncryptedValue(encryptedDoc, 'dob');
+            isEncryptedValue(encryptedDoc, 'dob');
           }
         });
 
