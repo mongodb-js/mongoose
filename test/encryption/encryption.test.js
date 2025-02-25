@@ -8,6 +8,16 @@ const { ObjectId, Double, Int32, Decimal128 } = require('bson');
 
 const LOCAL_KEY = Buffer.from('Mng0NCt4ZHVUYUJCa1kxNkVyNUR1QURhZ2h2UzR2d2RrZzh0cFBwM3R6NmdWMDFBMUN3YkQ5aXRRMkhGRGdQV09wOGVNYUMxT2k3NjZKelhaQmRCZGJkTXVyZG9uSjFk', 'base64');
 
+/**
+ * @param {object} object
+ * @param {string} property
+ */
+function isEncryptedValue(object, property) {
+  const value = object[property];
+  assert.ok(isBsonType(value, 'Binary'), `auto encryption for property ${property} failed: not a BSON binary.`);
+  assert.ok(value.sub_type === 6, `auto encryption for property ${property} failed: not subtype 6.`);
+}
+
 describe('ci', () => {
   describe('environmental variables', () => {
     it('MONGOOSE_TEST_URI is set', async function() {
@@ -21,7 +31,7 @@ describe('ci', () => {
     });
   });
 
-  let keyId, keyId2;
+  let keyId, keyId2, keyId3;
   let utilClient;
 
   beforeEach(async function() {
@@ -34,6 +44,7 @@ describe('ci', () => {
     });
     keyId = await clientEncryption.createDataKey('local');
     keyId2 = await clientEncryption.createDataKey('local');
+    keyId3 = await clientEncryption.createDataKey('local');
     await keyVaultClient.close();
 
     utilClient = new mdb.MongoClient(process.env.MONGOOSE_TEST_URI);
@@ -65,7 +76,6 @@ describe('ci', () => {
     ];
 
     for (const { type, name, input, expected } of basicSchemaTypes) {
-
       this.afterEach(async function() {
         await connection?.close();
       });
@@ -114,14 +124,14 @@ describe('ci', () => {
         it(`${name} encrypts and decrypts`, test);
       });
 
-      describe('QE', function() {
+      describe('queryableEncryption', function() {
         beforeEach(async function() {
           schema = new Schema({
             field: {
               type, encrypt: { keyId: keyId }
             }
           }, {
-            encryptionType: 'qe'
+            encryptionType: 'queryableEncryption'
           });
 
           connection = createConnection();
@@ -177,7 +187,7 @@ describe('ci', () => {
                 }
               }
             }, {
-              encryptionType: 'qe'
+              encryptionType: 'queryableEncryption'
             });
 
             connection = createConnection();
@@ -221,12 +231,12 @@ describe('ci', () => {
                 }
               }
             }, {
-              encryptionType: 'qe'
+              encryptionType: 'queryableEncryption'
             });
             const schema = new Schema({
               a: nestedSchema
             }, {
-              encryptionType: 'qe'
+              encryptionType: 'queryableEncryption'
             });
 
             connection = createConnection();
@@ -297,7 +307,7 @@ describe('ci', () => {
                 }
               }
             }, {
-              encryptionType: 'qe'
+              encryptionType: 'queryableEncryption'
             });
 
             connection = createConnection();
@@ -388,7 +398,7 @@ describe('ci', () => {
                 }
               }
             }, {
-              encryptionType: 'qe'
+              encryptionType: 'queryableEncryption'
             });
 
             connection = createConnection();
@@ -471,7 +481,7 @@ describe('ci', () => {
                 }
               }
             }, {
-              encryptionType: 'qe'
+              encryptionType: 'queryableEncryption'
             }));
             const model2 = connection.model('Model2', new Schema({
               b: {
@@ -481,7 +491,7 @@ describe('ci', () => {
                 }
               }
             }, {
-              encryptionType: 'qe'
+              encryptionType: 'queryableEncryption'
             }));
 
             return { model1, model2 };
@@ -541,7 +551,7 @@ describe('ci', () => {
             }
           }
         }, {
-          encryptionType: 'qe'
+          encryptionType: 'queryableEncryption'
         }));
         const model2 = connection.model('Model2', new Schema({
           b: {
@@ -587,6 +597,173 @@ describe('ci', () => {
           assert.deepEqual(doc.b, 'world');
         }
       });
+    });
+
+    describe('Models with discriminators', function() {
+      let discrim1, discrim2, model;
+
+      describe('csfle', function() {
+        beforeEach(async function() {
+          connection = createConnection();
+
+          const schema = new Schema({
+            name: {
+              type: String, encrypt: { keyId: [keyId], algorithm }
+            }
+          }, {
+            encryptionType: 'csfle'
+          });
+          model = connection.model('Schema', schema);
+          discrim1 = model.discriminator('Test', new Schema({
+            age: {
+              type: Int32, encrypt: { keyId: [keyId], algorithm }
+            }
+          }, {
+            encryptionType: 'csfle'
+          }));
+
+          discrim2 = model.discriminator('Test2', new Schema({
+            dob: {
+              type: Int32, encrypt: { keyId: [keyId], algorithm }
+            }
+          }, {
+            encryptionType: 'csfle'
+          }));
+
+
+          await connection.openUri(process.env.MONGOOSE_TEST_URI, {
+            dbName: 'db', autoEncryption: {
+              keyVaultNamespace: 'keyvault.datakeys',
+              kmsProviders: { local: { key: LOCAL_KEY } },
+              extraOptions: {
+                cryptdSharedLibRequired: true,
+                cryptSharedLibPath: process.env.CRYPT_SHARED_LIB_PATH
+              }
+            }
+          });
+        });
+        it('encrypts', async function() {
+          {
+            const doc = new discrim1({ name: 'bailey', age: 32 });
+            await doc.save();
+
+            const encryptedDoc = await utilClient.db('db').collection('schemas').findOne({ _id: doc._id });
+
+            isEncryptedValue(encryptedDoc, 'age');
+          }
+
+          {
+            const doc = new discrim2({ name: 'bailey', dob: 32 });
+            await doc.save();
+
+            const encryptedDoc = await utilClient.db('db').collection('schemas').findOne({ _id: doc._id });
+
+            isEncryptedValue(encryptedDoc, 'dob');
+          }
+        });
+
+        it('decrypts', async function() {
+          {
+            const doc = new discrim1({ name: 'bailey', age: 32 });
+            await doc.save();
+
+            const decryptedDoc = await discrim1.findOne({ _id: doc._id });
+
+            assert.equal(decryptedDoc.age, 32);
+          }
+
+          {
+            const doc = new discrim2({ name: 'bailey', dob: 32 });
+            await doc.save();
+
+            const decryptedDoc = await discrim2.findOne({ _id: doc._id });
+
+            assert.equal(decryptedDoc.dob, 32);
+          }
+        });
+      });
+
+
+      describe('queryableEncryption', function() {
+        beforeEach(async function() {
+          connection = createConnection();
+
+          const schema = new Schema({
+            name: {
+              type: String, encrypt: { keyId }
+            }
+          }, {
+            encryptionType: 'queryableEncryption'
+          });
+          model = connection.model('Schema', schema);
+          discrim1 = model.discriminator('Test', new Schema({
+            age: {
+              type: Int32, encrypt: { keyId: keyId2 }
+            }
+          }, {
+            encryptionType: 'queryableEncryption'
+          }));
+
+          discrim2 = model.discriminator('Test2', new Schema({
+            dob: {
+              type: Int32, encrypt: { keyId: keyId3 }
+            }
+          }, {
+            encryptionType: 'queryableEncryption'
+          }));
+
+          await connection.openUri(process.env.MONGOOSE_TEST_URI, {
+            dbName: 'db', autoEncryption: {
+              keyVaultNamespace: 'keyvault.datakeys',
+              kmsProviders: { local: { key: LOCAL_KEY } },
+              extraOptions: {
+                cryptdSharedLibRequired: true,
+                cryptSharedLibPath: process.env.CRYPT_SHARED_LIB_PATH
+              }
+            }
+          });
+        });
+        it('encrypts', async function() {
+          {
+            const doc = new discrim1({ name: 'bailey', age: 32 });
+            await doc.save();
+
+            const encryptedDoc = await utilClient.db('db').collection('schemas').findOne({ _id: doc._id });
+
+            isEncryptedValue(encryptedDoc, 'age');
+          }
+
+          {
+            const doc = new discrim2({ name: 'bailey', dob: 32 });
+            await doc.save();
+
+            const encryptedDoc = await utilClient.db('db').collection('schemas').findOne({ _id: doc._id });
+
+            isEncryptedValue(encryptedDoc, 'dob');
+          }
+        });
+
+        it('decrypts', async function() {
+          {
+            const doc = new discrim1({ name: 'bailey', age: 32 });
+            await doc.save();
+
+            const decryptedDoc = await discrim1.findOne({ _id: doc._id });
+
+            assert.equal(decryptedDoc.age, 32);
+          }
+
+          {
+            const doc = new discrim2({ name: 'bailey', dob: 32 });
+            await doc.save();
+
+            const decryptedDoc = await discrim2.findOne({ _id: doc._id });
+
+            assert.equal(decryptedDoc.dob, 32);
+          }
+        });
+      });
+
     });
   });
 });
