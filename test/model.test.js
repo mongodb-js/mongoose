@@ -6,6 +6,7 @@
 const sinon = require('sinon');
 const start = require('./common');
 
+const CastError = require('../lib/error/cast');
 const assert = require('assert');
 const { once } = require('events');
 const random = require('./util').random;
@@ -368,7 +369,7 @@ describe('Model', function() {
         assert.equal(post.get('comments')[0].comments[0].isNew, true);
         post.invalidate('title'); // force error
 
-        await post.save().catch(() => {});
+        await post.save().catch(() => { });
         assert.equal(post.isNew, true);
         assert.equal(post.get('comments')[0].isNew, true);
         assert.equal(post.get('comments')[0].comments[0].isNew, true);
@@ -2479,7 +2480,7 @@ describe('Model', function() {
 
         const DefaultErr = db.model('Test', DefaultErrSchema);
 
-        new DefaultErr().save().catch(() => {});
+        new DefaultErr().save().catch(() => { });
 
         await new Promise(resolve => {
           DefaultErr.once('error', function(err) {
@@ -3043,7 +3044,7 @@ describe('Model', function() {
       const Location = db.model('Test', LocationSchema);
 
 
-      await Location.collection.drop().catch(() => {});
+      await Location.collection.drop().catch(() => { });
       await Location.init();
 
       await Location.create({
@@ -3512,7 +3513,7 @@ describe('Model', function() {
           listener = null;
           // Change stream may still emit "MongoAPIError: ChangeStream is closed" because change stream
           // may still poll after close.
-          changeStream.on('error', () => {});
+          changeStream.on('error', () => { });
           changeStream.close();
           changeStream = null;
         });
@@ -3664,7 +3665,7 @@ describe('Model', function() {
 
           // Change stream may still emit "MongoAPIError: ChangeStream is closed" because change stream
           // may still poll after close.
-          changeStream.on('error', () => {});
+          changeStream.on('error', () => { });
           await changeStream.close();
           await db.close();
         });
@@ -3682,7 +3683,7 @@ describe('Model', function() {
 
           // Change stream may still emit "MongoAPIError: ChangeStream is closed" because change stream
           // may still poll after close.
-          changeStream.on('error', () => {});
+          changeStream.on('error', () => { });
 
           const close = changeStream.close();
           await db.asPromise();
@@ -3708,7 +3709,7 @@ describe('Model', function() {
 
           // Change stream may still emit "MongoAPIError: ChangeStream is closed" because change stream
           // may still poll after close.
-          changeStream.on('error', () => {});
+          changeStream.on('error', () => { });
 
           changeStream.close();
           const closedData = await closed;
@@ -4121,7 +4122,7 @@ describe('Model', function() {
           { ordered: false, throwOnValidationError: true }
         ).then(() => null, err => err);
         assert.ok(err);
-        assert.equal(err.name, 'MongooseBulkWriteError');
+        assert.equal(err.name, 'MongooseBulkWriteError', err.stack);
         assert.equal(err.validationErrors[0].errors['num'].name, 'CastError');
       });
 
@@ -4174,7 +4175,7 @@ describe('Model', function() {
         assert.strictEqual(r2.testArray[0].nonexistentProp, undefined);
       });
 
-      it('handles overwriteDiscriminatorKey (gh-15040)', async function() {
+      it('handles overwriteDiscriminatorKey (gh-15218) (gh-15040)', async function() {
         const dSchema1 = new mongoose.Schema({
           field1: String
         });
@@ -4202,7 +4203,7 @@ describe('Model', function() {
         assert.equal(r1.field1, 'field1');
         assert.equal(r1.key, type1Key);
 
-        const field2 = 'field2';
+        let field2 = 'field2';
         await TestModel.bulkWrite([{
           updateOne: {
             filter: { _id: r1._id },
@@ -4214,7 +4215,13 @@ describe('Model', function() {
           }
         }]);
 
-        const r2 = await TestModel.findById(r1._id);
+        let r2 = await TestModel.findById(r1._id);
+        assert.equal(r2.key, type2Key);
+        assert.equal(r2.field2, field2);
+
+        field2 = 'field2 updated again';
+        await TestModel.updateOne({ _id: r1._id }, { $set: { key: type2Key, field2 } }, { overwriteDiscriminatorKey: true });
+        r2 = await TestModel.findById(r1._id);
         assert.equal(r2.key, type2Key);
         assert.equal(r2.field2, field2);
       });
@@ -4700,6 +4707,46 @@ describe('Model', function() {
         assert.equal(err.name, 'MongooseBulkWriteError');
         assert.equal(err.validationErrors[0].path, 'age');
         assert.equal(err.results[0].path, 'age');
+      });
+
+      it('bulkWrite should return both write errors and validation errors in error.results (gh-15265)', async function() {
+        const userSchema = new Schema({ _id: Number, age: { type: Number } });
+        const User = db.model('User', userSchema);
+
+        const createdUser = await User.create({ _id: 1, name: 'Test' });
+
+        const err = await User.bulkWrite([
+          {
+            updateOne: {
+              filter: { _id: createdUser._id },
+              update: { $set: { age: 'NaN' } }
+            }
+          },
+          {
+            insertOne: {
+              document: { _id: 3, age: 14 }
+            }
+          },
+          {
+            insertOne: {
+              document: { _id: 1, age: 13 }
+            }
+          },
+          {
+            insertOne: {
+              document: { _id: 1, age: 14 }
+            }
+          }
+        ], { ordered: false, throwOnValidationError: true })
+          .then(() => null)
+          .catch(err => err);
+
+        assert.ok(err);
+        assert.strictEqual(err.mongoose.results.length, 4);
+        assert.ok(err.mongoose.results[0] instanceof CastError);
+        assert.strictEqual(err.mongoose.results[1], null);
+        assert.equal(err.mongoose.results[2].constructor.name, 'WriteError');
+        assert.equal(err.mongoose.results[3].constructor.name, 'WriteError');
       });
     });
 
@@ -5540,7 +5587,7 @@ describe('Model', function() {
       const Model = db.model('User', userSchema);
 
 
-      await Model.collection.drop().catch(() => {});
+      await Model.collection.drop().catch(() => { });
       await Model.createCollection();
       const collectionName = Model.collection.name;
 
@@ -5574,7 +5621,7 @@ describe('Model', function() {
       const Test = db.model('Test', schema, 'Test');
       await Test.init();
 
-      await Test.collection.drop().catch(() => {});
+      await Test.collection.drop().catch(() => { });
       await Test.createCollection();
 
       const collections = await Test.db.db.listCollections().toArray();
@@ -5583,7 +5630,7 @@ describe('Model', function() {
       assert.equal(coll.type, 'timeseries');
       assert.equal(coll.options.timeseries.timeField, 'timestamp');
 
-      await Test.collection.drop().catch(() => {});
+      await Test.collection.drop().catch(() => { });
     });
 
     it('createCollection() enforces expireAfterSeconds (gh-11229)', async function() {
@@ -5604,7 +5651,7 @@ describe('Model', function() {
 
       const Test = db.model('TestGH11229Var1', schema);
 
-      await Test.collection.drop().catch(() => {});
+      await Test.collection.drop().catch(() => { });
       await Test.createCollection({ expireAfterSeconds: 5 });
 
       const collOptions = await Test.collection.options();
@@ -5632,7 +5679,7 @@ describe('Model', function() {
 
       const Test = db.model('TestGH11229Var2', schema, 'TestGH11229Var2');
 
-      await Test.collection.drop().catch(() => {});
+      await Test.collection.drop().catch(() => { });
       await Test.createCollection({ expires: '5 seconds' });
 
       const collOptions = await Test.collection.options();
@@ -5660,7 +5707,7 @@ describe('Model', function() {
 
       const Test = db.model('TestGH11229Var3', schema);
 
-      await Test.collection.drop().catch(() => {});
+      await Test.collection.drop().catch(() => { });
       await Test.createCollection();
 
       const collOptions = await Test.collection.options();
@@ -5688,7 +5735,7 @@ describe('Model', function() {
 
       const Test = db.model('TestGH11229Var4', schema);
 
-      await Test.collection.drop().catch(() => {});
+      await Test.collection.drop().catch(() => { });
       await Test.createCollection();
 
       const collOptions = await Test.collection.options();
@@ -5716,7 +5763,7 @@ describe('Model', function() {
       const Test = db.model('Test', schema, 'Test');
       await Test.init();
 
-      await Test.collection.drop().catch(() => {});
+      await Test.collection.drop().catch(() => { });
       await Test.createCollection();
 
       const collections = await Test.db.db.listCollections().toArray();
@@ -5725,7 +5772,7 @@ describe('Model', function() {
       assert.deepEqual(coll.options.clusteredIndex.key, { _id: 1 });
       assert.equal(coll.options.clusteredIndex.name, 'clustered test');
 
-      await Test.collection.drop().catch(() => {});
+      await Test.collection.drop().catch(() => { });
     });
 
     it('mongodb actually removes expired documents (gh-11229)', async function() {
@@ -5747,7 +5794,7 @@ describe('Model', function() {
 
       const Test = db.model('TestMongoDBExpireRemoval', schema);
 
-      await Test.collection.drop().catch(() => {});
+      await Test.collection.drop().catch(() => { });
       await Test.createCollection({ expireAfterSeconds: 5 });
 
       await Test.insertMany([
@@ -5845,7 +5892,7 @@ describe('Model', function() {
       const Model = db.model('User', userSchema);
 
 
-      await Model.collection.drop().catch(() => {});
+      await Model.collection.drop().catch(() => { });
 
       await Model.createCollection();
       await Model.createCollection();
@@ -6486,17 +6533,9 @@ describe('Model', function() {
     assert.deepEqual(
       res,
       {
-        result: {
-          ok: 1,
-          writeErrors: [],
-          writeConcernErrors: [],
-          insertedIds: [],
-          nInserted: 0,
-          nUpserted: 0,
-          nMatched: 0,
-          nModified: 0,
-          nRemoved: 0,
-          upserted: []
+        mongoose: {
+          results: [],
+          validationErrors: []
         },
         insertedCount: 0,
         matchedCount: 0,
@@ -6508,7 +6547,20 @@ describe('Model', function() {
         n: 0
       }
     );
+    assert.deepEqual(res.result, {
+      ok: 1,
+      writeErrors: [],
+      writeConcernErrors: [],
+      insertedIds: [],
+      nInserted: 0,
+      nUpserted: 0,
+      nMatched: 0,
+      nModified: 0,
+      nRemoved: 0,
+      upserted: []
+    });
 
+    assert.equal(typeof res.getWriteErrorAt, 'function');
   });
 
   it('Model.bulkWrite(...) does not throw an error with upsert:true, setDefaultsOnInsert: true (gh-9157)', async function() {
@@ -6525,7 +6577,7 @@ describe('Model', function() {
     await User.bulkWrite([
       {
         updateOne: {
-          filter: { },
+          filter: {},
           update: { friends: ['Sam'] },
           upsert: true,
           setDefaultsOnInsert: true
@@ -6548,18 +6600,6 @@ describe('Model', function() {
     assert.deepEqual(
       res,
       {
-        result: {
-          ok: 1,
-          writeErrors: [],
-          writeConcernErrors: [],
-          insertedIds: [],
-          nInserted: 0,
-          nUpserted: 0,
-          nMatched: 0,
-          nModified: 0,
-          nRemoved: 0,
-          upserted: []
-        },
         insertedCount: 0,
         matchedCount: 0,
         modifiedCount: 0,
@@ -6567,9 +6607,30 @@ describe('Model', function() {
         upsertedCount: 0,
         upsertedIds: {},
         insertedIds: {},
-        n: 0
+        n: 0,
+        mongoose: {
+          results: [],
+          validationErrors: []
+        }
       }
     );
+    assert.deepEqual(
+      res.result,
+      {
+        ok: 1,
+        writeErrors: [],
+        writeConcernErrors: [],
+        insertedIds: [],
+        nInserted: 0,
+        nUpserted: 0,
+        nMatched: 0,
+        nModified: 0,
+        nRemoved: 0,
+        upserted: []
+      }
+    );
+
+    assert.equal(typeof res.getWriteErrorAt, 'function');
   });
 
   it('allows calling `create()` after `bulkWrite()` (gh-9350)', async function() {
@@ -7002,7 +7063,7 @@ describe('Model', function() {
     });
 
     it('insertMany should throw an error if there were operations that failed validation, ' +
-        'but all operations that passed validation succeeded (gh-14572) (gh-13256)', async function() {
+      'but all operations that passed validation succeeded (gh-14572) (gh-13256)', async function() {
       const userSchema = new Schema({
         age: { type: Number }
       });
@@ -7038,6 +7099,41 @@ describe('Model', function() {
 
       docs = await User.find();
       assert.deepStrictEqual(docs.map(doc => doc.age), [12, 12]);
+    });
+
+    it('insertMany should return both write errors and validation errors in error.results (gh-15265)', async function() {
+      const userSchema = new Schema({ _id: Number, age: { type: Number } });
+      const User = db.model('User', userSchema);
+      await User.insertOne({ _id: 1, age: 12 });
+
+      const err = await User.insertMany([
+        { _id: 1, age: 'NaN' },
+        { _id: 3, age: 14 },
+        { _id: 1, age: 13 },
+        { _id: 1, age: 14 }
+      ], { ordered: false }).then(() => null).catch(err => err);
+
+      assert.ok(err);
+      assert.strictEqual(err.results.length, 4);
+      assert.ok(err.results[0] instanceof ValidationError);
+      assert.ok(err.results[1] instanceof User);
+      assert.ok(err.results[2].err);
+      assert.ok(err.results[3].err);
+    });
+
+    it('insertMany should return both write errors and validation errors in error.results with rawResult (gh-15265)', async function() {
+      const userSchema = new Schema({ _id: Number, age: { type: Number } });
+      const User = db.model('User', userSchema);
+
+      const res = await User.insertMany([
+        { _id: 1, age: 'NaN' },
+        { _id: 3, age: 14 }
+      ], { ordered: false, rawResult: true });
+
+      assert.ok(res);
+      assert.strictEqual(res.mongoose.results.length, 2);
+      assert.ok(res.mongoose.results[0] instanceof ValidationError);
+      assert.ok(res.mongoose.results[1] instanceof User);
     });
 
     it('returns writeResult on success', async() => {
@@ -8020,7 +8116,7 @@ describe('Model', function() {
     decoratorSchema.loadClass(Decorator);
 
     // Define discriminated class before model is compiled
-    class Deco1 extends Decorator { whoAmI() { return 'I am Test1'; }}
+    class Deco1 extends Decorator { whoAmI() { return 'I am Test1'; } }
     const deco1Schema = new Schema({});
     deco1Schema.loadClass(Deco1);
     decoratorSchema.discriminator('Test1', deco1Schema);
@@ -8032,7 +8128,7 @@ describe('Model', function() {
     const shopModel = db.model('Test', shopSchema);
 
     // Define another discriminated class after the model is compiled
-    class Deco2 extends Decorator { whoAmI() { return 'I am Test2'; }}
+    class Deco2 extends Decorator { whoAmI() { return 'I am Test2'; } }
     const deco2Schema = new Schema({});
     deco2Schema.loadClass(Deco2);
     decoratorSchema.discriminator('Test2', deco2Schema);
@@ -8158,7 +8254,7 @@ describe('Model', function() {
   });
 
   it('insertMany should throw an error if there were operations that failed validation, ' +
-      'but all operations that passed validation succeeded (gh-13256)', async function() {
+    'but all operations that passed validation succeeded (gh-13256)', async function() {
     const userSchema = new Schema({
       age: { type: Number }
     });
@@ -8503,6 +8599,15 @@ describe('Model', function() {
       const { toDrop } = await TestModel.diffIndexes();
       assert.deepStrictEqual(toDrop, []);
     });
+  });
+
+  it('throws error if calling `updateMany()` with no update param (gh-15190)', async function() {
+    const Test = db.model('Test', mongoose.Schema({ foo: String }));
+
+    assert.throws(
+      () => Test.updateMany({ foo: 'bar' }),
+      { message: 'updateMany `update` parameter cannot be nullish' }
+    );
   });
 
   describe('insertOne() (gh-14843)', function() {

@@ -2173,7 +2173,7 @@ describe('schema', function() {
     const keys = Object.keys(SchemaStringOptions.prototype).
       filter(key => key !== 'constructor' && key !== 'populate');
     const functions = Object.keys(Schema.Types.String.prototype).
-      filter(key => ['constructor', 'cast', 'castForQuery', 'checkRequired', 'toJSONSchema'].indexOf(key) === -1);
+      filter(key => ['constructor', 'cast', 'castForQuery', 'checkRequired', 'toJSONSchema', 'autoEncryptionType'].indexOf(key) === -1);
     assert.deepEqual(keys.sort(), functions.sort());
   });
 
@@ -3888,5 +3888,35 @@ describe('schema', function() {
       assert.throws(() => schema.toJSONSchema({ useBsonType: true }), /unsupported SchemaType to JSON Schema: Mixed/);
       assert.throws(() => schema.toJSONSchema(), /unsupported SchemaType to JSON Schema: Mixed/);
     });
+  });
+
+  it('path() clears existing child schemas (gh-15253)', async function() {
+    const RecursiveSchema = new mongoose.Schema({
+      data: String
+    });
+
+    const s = [RecursiveSchema];
+    RecursiveSchema.path('nested', s);
+    assert.strictEqual(RecursiveSchema.childSchemas.length, 1);
+    RecursiveSchema.path('nested', s);
+    assert.strictEqual(RecursiveSchema.childSchemas.length, 1);
+    RecursiveSchema.path('nested', s);
+    assert.strictEqual(RecursiveSchema.childSchemas.length, 1);
+    RecursiveSchema.path('nested', s);
+    assert.strictEqual(RecursiveSchema.childSchemas.length, 1);
+
+    const generateRecursiveDocument = (depth, curr = 0) => {
+      return {
+        name: `Document of depth ${curr}`,
+        nested: depth > 0 ? new Array(3).fill().map(() => generateRecursiveDocument(depth - 1, curr + 1)) : [],
+        data: Math.random()
+      };
+    };
+
+    const TestModel = db.model('Test', RecursiveSchema);
+    const data = generateRecursiveDocument(6);
+    const doc = new TestModel(data);
+    await doc.save();
+
   });
 });

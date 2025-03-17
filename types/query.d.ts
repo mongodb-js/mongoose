@@ -228,14 +228,14 @@ declare module 'mongoose' {
 
   type MergePopulatePaths<RawDocType, ResultType, QueryOp, Paths, TQueryHelpers, TDocOverrides = Record<string, never>> = QueryOp extends QueryOpThatReturnsDocument
     ? ResultType extends null
-      ? ResultType
-      : ResultType extends (infer U)[]
-        ? U extends Document
-          ? HydratedDocument<MergeType<RawDocType, Paths>, TDocOverrides, TQueryHelpers>[]
-          : (MergeType<U, Paths>)[]
-        : ResultType extends Document
-          ? HydratedDocument<MergeType<RawDocType, Paths>, TDocOverrides, TQueryHelpers>
-          : MergeType<ResultType, Paths>
+    ? ResultType
+    : ResultType extends (infer U)[]
+    ? U extends Document
+    ? HydratedDocument<MergeType<RawDocType, Paths>, TDocOverrides, TQueryHelpers>[]
+    : (MergeType<U, Paths>)[]
+    : ResultType extends Document
+    ? HydratedDocument<MergeType<RawDocType, Paths>, TDocOverrides, TQueryHelpers>
+    : MergeType<ResultType, Paths>
     : MergeType<ResultType, Paths>;
 
   class Query<ResultType, DocType, THelpers = {}, RawDocType = unknown, QueryOp = 'find', TDocOverrides = Record<string, never>> implements SessionOperation {
@@ -373,8 +373,8 @@ declare module 'mongoose' {
     ): QueryWithHelpers<
       Array<
         DocKey extends keyof WithLevel1NestedPaths<DocType>
-          ? WithoutUndefined<Unpacked<WithLevel1NestedPaths<DocType>[DocKey]>>
-          : ResultType
+        ? WithoutUndefined<Unpacked<WithLevel1NestedPaths<DocType>[DocKey]>>
+        : ResultType
       >,
       DocType,
       THelpers,
@@ -567,26 +567,26 @@ declare module 'mongoose' {
       val?: boolean | any
     ): QueryWithHelpers<
       ResultType extends null
-        ? GetLeanResultType<RawDocType, ResultType, QueryOp> | null
-        : GetLeanResultType<RawDocType, ResultType, QueryOp>,
+      ? GetLeanResultType<RawDocType, ResultType, QueryOp> | null
+      : GetLeanResultType<RawDocType, ResultType, QueryOp>,
       DocType,
       THelpers,
       RawDocType,
       QueryOp,
       TDocOverrides
-      >;
+    >;
     lean<LeanResultType>(
       val?: boolean | any
     ): QueryWithHelpers<
       ResultType extends null
-        ? LeanResultType | null
-        : LeanResultType,
+      ? LeanResultType | null
+      : LeanResultType,
       DocType,
       THelpers,
       RawDocType,
       QueryOp,
       TDocOverrides
-      >;
+    >;
 
     /** Specifies the maximum number of documents the query will return. */
     limit(val: number): this;
@@ -761,12 +761,12 @@ declare module 'mongoose' {
         {},
         ResultType,
         ResultType extends any[]
-          ? ResultType extends HydratedDocument<any>[]
-            ? HydratedDocument<RawDocTypeOverride>[]
-            : RawDocTypeOverride[]
-          : (ResultType extends HydratedDocument<any>
-            ? HydratedDocument<RawDocTypeOverride>
-            : RawDocTypeOverride) | (null extends ResultType ? null : never)
+        ? ResultType extends HydratedDocument<any>[]
+        ? HydratedDocument<RawDocTypeOverride>[]
+        : RawDocTypeOverride[]
+        : (ResultType extends HydratedDocument<any>
+          ? HydratedDocument<RawDocTypeOverride>
+          : RawDocTypeOverride) | (null extends ResultType ? null : never)
       >,
       DocType,
       THelpers,
@@ -850,9 +850,12 @@ declare module 'mongoose' {
      * the `multi` option.
      */
     updateMany(
-      filter?: RootFilterQuery<RawDocType>,
-      update?: UpdateQuery<RawDocType> | UpdateWithAggregationPipeline,
+      filter: RootFilterQuery<RawDocType>,
+      update: UpdateQuery<RawDocType> | UpdateWithAggregationPipeline,
       options?: QueryOptions<DocType> | null
+    ): QueryWithHelpers<UpdateWriteOpResult, DocType, THelpers, RawDocType, 'updateMany', TDocOverrides>;
+    updateMany(
+      update: UpdateQuery<RawDocType> | UpdateWithAggregationPipeline
     ): QueryWithHelpers<UpdateWriteOpResult, DocType, THelpers, RawDocType, 'updateMany', TDocOverrides>;
 
     /**
@@ -860,9 +863,12 @@ declare module 'mongoose' {
      * `update()`, except it does not support the `multi` or `overwrite` options.
      */
     updateOne(
-      filter?: RootFilterQuery<RawDocType>,
-      update?: UpdateQuery<RawDocType> | UpdateWithAggregationPipeline,
+      filter: RootFilterQuery<RawDocType>,
+      update: UpdateQuery<RawDocType> | UpdateWithAggregationPipeline,
       options?: QueryOptions<DocType> | null
+    ): QueryWithHelpers<UpdateWriteOpResult, DocType, THelpers, RawDocType, 'updateOne', TDocOverrides>;
+    updateOne(
+      update: UpdateQuery<RawDocType> | UpdateWithAggregationPipeline
     ): QueryWithHelpers<UpdateWriteOpResult, DocType, THelpers, RawDocType, 'updateOne', TDocOverrides>;
 
     /**

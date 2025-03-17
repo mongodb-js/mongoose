@@ -39,9 +39,8 @@ Keep in mind that the following example is a simple example to help you get star
 The encryption key in the following example is insecure; MongoDB recommends using a [KMS](https://www.mongodb.com/docs/v5.0/core/security-client-side-encryption-key-management/).
 
 ```javascript
-const { ClientEncryption } = require('mongodb-client-encryption');
+const { ClientEncryption } = require('mongodb');
 const mongoose = require('mongoose');
-const { Binary } = require('mongodb');
 
 run().catch(err => console.log(err));
 
@@ -66,12 +65,14 @@ async function run() {
       kmsProviders
     }
   }).asPromise();
-  const encryption = new ClientEncryption(conn.client, {
+  const encryption = new ClientEncryption(conn.getClient(), {
     keyVaultNamespace,
     kmsProviders,
   });
 
-  const _key = await encryption.createDataKey('local');
+  const _key = await encryption.createDataKey('local', {
+    keyAltNames: ['exampleKeyName'],
+  });
 }
 ```
 
@@ -111,4 +112,52 @@ With the above connection, if you create a model named 'Test' that uses the 'tes
 // if you query using the `mongo` shell.
 const Model = mongoose.model('Test', mongoose.Schema({ name: String }));
 await Model.create({ name: 'super secret' });
+```
+
+## Automatic FLE in Mongoose
+
+Mongoose supports the declaration of encrypted schemas - schemas that, when connected to a model, utilize MongoDB's Client Side
+Field Level Encryption or Queryable Encryption under the hood.  Mongoose automatically generates either an `encryptedFieldsMap` or a
+`schemaMap` when instantiating a MongoClient and encrypts fields on write and decrypts fields on reads.
+
+### Encryption types
+
+MongoDB has two different automatic encryption implementations: client side field level encryption (CSFLE) and queryable encryption (QE).  
+See [choosing an in-use encryption approach](https://www.mongodb.com/docs/v7.3/core/queryable-encryption/about-qe-csfle/#choosing-an-in-use-encryption-approach).
+
+###  Declaring Encrypted Schemas
+
+The following schema declares two properties, `name` and `ssn`.  `ssn` is encrypted using queryable encryption, and
+is configured for equality queries:
+
+```javascript
+const encryptedUserSchema = new Schema({ 
+  name: String,
+  ssn: { 
+    type: String, 
+    // 1
+    encrypt: { 
+      keyId: '<uuid string of key id>',
+      queries: 'equality'
+    }
+  }
+  // 2
+}, { encryptionType: 'queryableEncryption' });
+```
+
+To declare a field as encrypted, you must:
+
+1. Annotate the field with encryption metadata in the schema definition
+2. Choose an encryption type for the schema and configure the schema for the encryption type
+
+Not all schematypes are supported for CSFLE and QE.  For an overview of valid schema types, refer to MongoDB's documentation.
+
+### Registering Models
+
+Encrypted schemas must be registered on a connection, not the Mongoose global:
+
+```javascript
+
+const connection = mongoose.createConnection();
+const UserModel = connection.model('User', encryptedUserSchema);
 ```
